@@ -7,44 +7,121 @@ html_doc = """
 
 <p class="story">Once upon a time there were three little sisters; and their names were
 <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
-<a href="http://example.com/lacie" class="sister" id="link2">Lacie</a> and
-<a href="http://example.com/tillie" class="sister" id="link3">Tillie</a>;
+<a hrefz="http://example.com/lacie" class="sister" id="link2">Lacie</a> and
+<a href="httpz://example.com/tillie" class="sister" id="link3">Tillie</a>;
+<BAD> should not show up </BAD>
 and they lived at the bottom of a well.</p>
 
 <p class="story">...</p>
 """
 
+# starting Source Code from : http://blog.odonnell.nu/posts/html-comments/
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Comment
+import re #regex
 soup = BeautifulSoup(html_doc)
 
 #print(soup.prettify())
 
-print soup.title
-# <title>The Dormouse's story</title>
+# TODO: doesn't support a href and src right now
+def sanitize(html):  
+      
+    if not html:  
+        return  
+  
+    # remove these tags, complete with contents.  
+    blacklist = ["script", "style" ]  
+    
+    # allow these tags. 
+    whitelist = [  
+        "div", "span", "p", "br", "pre",  
+        "table", "tbody", "thead", "tr", "td", "a",
+        "ul", "li", "ol",   
+        "b", "em", "i", "strong", "u", "font"                   
+        ]  
 
-print soup.title.name
-# u'title'
+    attr_whitelist = { 'a':['href','title','hreflang'], 'p':[]}
+    
+    attributes_with_urls = [ 'href', 'src' ]
+    
+    soup = BeautifulSoup(html)           
+  
+    # now strip HTML we don't like.  
+    for tag in soup.findAll():  
+        if tag.name.lower() in blacklist:  
+            # blacklisted tags are removed in their entirety  
+            tag.extract()  
+        elif tag.name.lower() in whitelist:  # names are like 'a', 'p', etc.
+            # tag is allowed. Make sure all the attributes are allowed.  
+            #tag.attrs = [(a[0], safe_css(a[0], a[1])) for a in tag.attrs if _attr_name_whitelisted(a[0])]  
+            
+            # tag is allowed. Make sure all the attributes are allowed.
 
-soup.title.string
-# u'The Dormouse's story'
+            # NOTE: use an array to keep track of bad attr's, then remove them
+            # from the tag.attrs dictionary AFTER the loop so no "change size" error
+            bad_attrs = []
+            for attr in tag.attrs: #attrs are like id, name, class, href, etc.
+                # allowed attributes are whitelisted per-tag
+                #print "HIHIHI"
+                print attr
+                if tag.name.lower() in attr_whitelist and attr.lower() in attr_whitelist[ tag.name.lower() ]:
+                    # some attributes contain urls..
+                    print "ZOOM"
+                    print attr #so only href, title, hreflang should get here
+                    if attr.lower() in attributes_with_urls:
+                        print "Bybybye"
+                        #print attr.lower()
+                        # ..make sure urls are formatted well
+                        
+                        # TBH: i dont get this condition below, and why it uses attr[1]
+                        # TODO:::: WRITE THIS THING. that regex isn't matching properly
+                        if not re.match(r'(https?|ftp)://', attr[1].lower()):
+                            #tag.attrs.remove( attr )
+                            #del tag.attrs[attr]
+                            print "BOOM"
+                            print attr[1]
+                            bad_attrs += [attr]
+                            # ok, then
+                            pass
+                else:
+                    # not a whitelisted attribute. Remove it.
+                    print "KAKAW"
+                    #tag.attrs.remove( attr )
+                    bad_attrs += [attr]
+            # REMOVE the bad tag.attrs
+            # TODO: get this part to work
+            #print "UMMM"
+            print tag.attrs
+            print bad_attrs
+            #print bad_attrs
+            #for ba in bad_attrs:
+            #    del tag.attrs[ba]
+        else:  
+            # not a whitelisted tag. I'd like to remove it from the tree  
+            # and replace it with its children. But that's hard. It's much  
+            # easier to just replace it with an empty span tag.  
+            tag.name = "span"  
+            tag.attrs = []  
+  
+    # scripts can be executed from comments in some cases  
+    comments = soup.findAll(text=lambda text:isinstance(text, Comment))  
+    for comment in comments:  
+        comment.extract()  
+  
+    safe_html = unicode(soup)  
+      
+    if safe_html == ", -":  
+        return None     
+      
+    return safe_html
 
-soup.title.parent.name
-# u'head'
+def _attr_name_whitelisted(attr_name):  
+    return attr_name.lower() in ["href", "style", "color", "size", "bgcolor", "border"]  
+       
+def safe_css(attr, css):  
+    if attr == "style":  
+        return re.sub("(width|height):[^;]+;", "", css)  
+    return css
 
-soup.p
-# <p class="title"><b>The Dormouse's story</b></p>
 
-soup.p['class']
-# u'title'
-
-soup.a
-# <a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>
-
-soup.find_all('a')
-# [<a class="sister" href="http://example.com/elsie" id="link1">Elsie</a>,
-#  <a class="sister" href="http://example.com/lacie" id="link2">Lacie</a>,
-#  <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>]
-
-print soup.find(id="link3")
-# <a class="sister" href="http://example.com/tillie" id="link3">Tillie</a>
+print sanitize(html_doc)
