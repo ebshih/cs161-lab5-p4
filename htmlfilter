@@ -4,9 +4,7 @@
 
 # TODO: get this input thing working, then can use HTML.txt from cmd
 import sys
-html_file_name = sys.argv[1]
-with open(html_file_name) as html_file:
-    html_doc = html_file.read()
+html_doc = sys.stdin.read()
 
 print "Here is unsanitized HTML,"
 print html_doc
