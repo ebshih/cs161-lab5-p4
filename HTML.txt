@@ -1,0 +1,19 @@
+html_doc = """
+<html><head><title>The Dormouse's story</title></head>
+
+<p class="title"><b>The Dormouse's story</b></p>
+
+<p class="story">Once upon a time there were three little sisters; and their names were
+<a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
+<a hrefz="http://example.com/lacie" class="sister" id="link2" name="Lacie">Lacie</a> and
+<a href="httpz://example.com/tillie" class="sister" id="link3">Tillie</a>;
+<BAD> can we get this text to show up!!!! </BAD>
+<img src="smiley.gif" alt="Smiley face" height="42" width="42" poop="3"/> 
+<img src="http://example.com/smiley.gif" alt="Smiley face 2" height="42" width="42"/>
+<script>alert("XSS")</script>
+<!--This is a comment. Comments are not displayed in the browser-->
+
+and they lived at the bottom of a well.</p>
+
+<p class="story">...</p>
+"""
