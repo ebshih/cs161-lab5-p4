@@ -1,5 +1,15 @@
 #!/usr/bin/env python
 
+
+
+# TODO: get this input thing working, then can use HTML.txt from cmd
+#import sys
+#html_doc = sys.stdin.readlines()
+#print html_doc
+#print "\n"
+
+
+
 html_doc = """
 <html><head><title>The Dormouse's story</title></head>
 
@@ -7,40 +17,48 @@ html_doc = """
 
 <p class="story">Once upon a time there were three little sisters; and their names were
 <a href="http://example.com/elsie" class="sister" id="link1">Elsie</a>,
-<a hrefz="http://example.com/lacie" class="sister" id="link2">Lacie</a> and
+<a hrefz="http://example.com/lacie" class="sister" id="link2" name="Lacie">Lacie</a> and
 <a href="httpz://example.com/tillie" class="sister" id="link3">Tillie</a>;
-<BAD> should not show up </BAD>
+<BAD> can we get this text to show up!!!! </BAD>
+<img src="smiley.gif" alt="Smiley face" height="42" width="42" poop="3"/> 
+<img src="http://example.com/smiley.gif" alt="Smiley face 2" height="42" width="42"/>
+<script>alert("XSS")</script>
+<!--This is a comment. Comments are not displayed in the browser-->
+
 and they lived at the bottom of a well.</p>
 
 <p class="story">...</p>
 """
 
-# starting Source Code from : http://blog.odonnell.nu/posts/html-comments/
+# TODO: add : <IMG """><SCRIPT>alert("XSS")</SCRIPT>">
+# maybe test different html parser/
+
+# Code based off of: http://blog.odonnell.nu/posts/html-comments/
 
 from bs4 import BeautifulSoup, Comment
 import re #regex
-soup = BeautifulSoup(html_doc)
 
-#print(soup.prettify())
-
-# TODO: doesn't support a href and src right now
 def sanitize(html):  
       
     if not html:  
         return  
   
     # remove these tags, complete with contents.  
+    # TODO: do we want the contents to come through, like as plain text?"
     blacklist = ["script", "style" ]  
     
-    # allow these tags. 
+    # allow these tags. NOTE: class, name, id are not included b/c
+    # they are technically not needed for display purposes so it
+    # is simpler just to ignore them
     whitelist = [  
         "div", "span", "p", "br", "pre",  
         "table", "tbody", "thead", "tr", "td", "a",
         "ul", "li", "ol",   
-        "b", "em", "i", "strong", "u", "font"                   
+        "b", "em", "i", "strong", "u", "font",
+        "img"
         ]  
-
-    attr_whitelist = { 'a':['href','title','hreflang'], 'p':[]}
+    # TODO: write code to sanitize img tags
+    attr_whitelist = { 'a':['href','title','hreflang'], 'p':[], 'img':['src', 'width', 'height', 'alt', 'title'] }
     
     attributes_with_urls = [ 'href', 'src' ]
     
@@ -52,76 +70,55 @@ def sanitize(html):
             # blacklisted tags are removed in their entirety  
             tag.extract()  
         elif tag.name.lower() in whitelist:  # names are like 'a', 'p', etc.
-            # tag is allowed. Make sure all the attributes are allowed.  
-            #tag.attrs = [(a[0], safe_css(a[0], a[1])) for a in tag.attrs if _attr_name_whitelisted(a[0])]  
-            
             # tag is allowed. Make sure all the attributes are allowed.
 
             # NOTE: use an array to keep track of bad attr's, then remove them
             # from the tag.attrs dictionary AFTER the loop so no "change size" error
             bad_attrs = []
-            for attr in tag.attrs: #attrs are like id, name, class, href, etc.
+            for attr in tag.attrs: # attrs are like name, class, href, etc.
                 # allowed attributes are whitelisted per-tag
-                #print "HIHIHI"
-                print attr
+                #print attr
                 if tag.name.lower() in attr_whitelist and attr.lower() in attr_whitelist[ tag.name.lower() ]:
-                    # some attributes contain urls..
-                    print "ZOOM"
-                    print attr #so only href, title, hreflang should get here
+                    # Check for safe URLs. Don't want javascript, etc.
                     if attr.lower() in attributes_with_urls:
-                        print "Bybybye"
-                        #print attr.lower()
-                        # ..make sure urls are formatted well
-                        
-                        # TBH: i dont get this condition below, and why it uses attr[1]
-                        # TODO:::: WRITE THIS THING. that regex isn't matching properly
-                        if not re.match(r'(https?|ftp)://', attr[1].lower()):
-                            #tag.attrs.remove( attr )
-                            #del tag.attrs[attr]
-                            print "BOOM"
-                            print attr[1]
-                            bad_attrs += [attr]
+                        #print "!!!!!!!!!!!!!!!!!"
+                        #print tag.attrs[attr]
+                        #print "!!!!!!!!!!!!!!!!!!"
+                        # TODO: support relative URLS, like "smiley.gif"? or do we care?
+                        # TODO: if its like javascript.URL, should we just turn it into string
+                        # or just remove it like it currently does b/c they want "text to come through"
+                        if not re.match(r'(https?|ftp)://', tag.attrs[attr].lower()):
+                            #print "~~~"
+                            #print attr
+                            bad_attrs += [attr] # TODO: fix and uncomment
                             # ok, then
                             pass
                 else:
-                    # not a whitelisted attribute. Remove it.
-                    print "KAKAW"
-                    #tag.attrs.remove( attr )
+                    # Remove tags that are not whitelisted
+                    # Note: includes 'class', 'id', 'name' atm as described above
                     bad_attrs += [attr]
-            # REMOVE the bad tag.attrs
-            # TODO: get this part to work
-            #print "UMMM"
+            # Remove the bad attrs from the tag
+            print "\n"
+            print tag.name
             print tag.attrs
             print bad_attrs
-            #print bad_attrs
-            #for ba in bad_attrs:
-            #    del tag.attrs[ba]
+            for ba in bad_attrs:
+                del tag.attrs[ba]
         else:  
             # not a whitelisted tag. I'd like to remove it from the tree  
             # and replace it with its children. But that's hard. It's much  
             # easier to just replace it with an empty span tag.  
-            tag.name = "span"  
+            tag.name = "span" 
+            #tag.hidden = True #TODO: determine if we want it to be in a SPAN or just to hide the tag
             tag.attrs = []  
   
-    # scripts can be executed from comments in some cases  
+    # Just remove all comments just in case they have scripts in them
     comments = soup.findAll(text=lambda text:isinstance(text, Comment))  
     for comment in comments:  
         comment.extract()  
   
     safe_html = unicode(soup)  
-      
-    if safe_html == ", -":  
-        return None     
-      
     return safe_html
-
-def _attr_name_whitelisted(attr_name):  
-    return attr_name.lower() in ["href", "style", "color", "size", "bgcolor", "border"]  
-       
-def safe_css(attr, css):  
-    if attr == "style":  
-        return re.sub("(width|height):[^;]+;", "", css)  
-    return css
 
 
 print sanitize(html_doc)
