@@ -13,8 +13,6 @@ print html_doc
 print "\n"
 
 
-
-
 # TODO: add : <IMG """><SCRIPT>alert("XSS")</SCRIPT>">
 # maybe test different html parser/
 
