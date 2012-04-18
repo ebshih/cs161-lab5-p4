@@ -8,9 +8,9 @@ import re
 
 html_doc = sys.stdin.read()
 
-print "Here is unsanitized HTML,"
-print html_doc
-print "\n"
+#print "Here is unsanitized HTML,"
+#print html_doc
+#print "\n"
 
 
 # TODO: add : <IMG """><SCRIPT>alert("XSS")</SCRIPT>">
@@ -42,7 +42,7 @@ def sanitize(html):
     
     attributes_with_urls = [ 'href', 'src' ]
     
-    soup = BeautifulSoup(html)           
+    soup = BeautifulSoup(html, "html5lib")           
   
     # now strip HTML we don't like.  
     for tag in soup.findAll():  
