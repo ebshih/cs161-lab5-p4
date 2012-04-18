@@ -5,16 +5,7 @@ import html5lib
 import sys
 import re
 
-
 html_doc = sys.stdin.read()
-
-#print "Here is unsanitized HTML,"
-#print html_doc
-#print "\n"
-
-
-# TODO: add : <IMG """><SCRIPT>alert("XSS")</SCRIPT>">
-# maybe test different html parser/
 
 # Code based off of: http://blog.odonnell.nu/posts/html-comments/
 
@@ -23,12 +14,12 @@ def sanitize(html):
     if not html:  
         return  
   
-    # remove these tags, complete with contents.  
-    # TODO: do we want the contents to come through, like as plain text?"
+    # Completely remove these tags and their contents, to be safe
     blacklist = ["script", "style" ]  
     
-    # allow these tags. NOTE: class, name, id are not included b/c
-    # they are technically not needed for display purposes so it
+    # Allow these tags
+    # NOTE: class, name, id are not included b/c they
+    # are technically not needed for display purposes so it
     # is simpler just to ignore them
     whitelist = [  
         "div", "span", "p", "br", "pre",  
@@ -37,59 +28,45 @@ def sanitize(html):
         "b", "em", "i", "strong", "u", "font",
         "img"
         ]  
-    # TODO: write code to sanitize img tags
+
     attr_whitelist = { 'a':['href','title','hreflang'], 'p':[], 'img':['src', 'width', 'height', 'alt', 'title'] }
     
     attributes_with_urls = [ 'href', 'src' ]
     
     soup = BeautifulSoup(html, "html5lib")           
   
-    # now strip HTML we don't like.  
+    # Sanitize HTML by removing things that are potentially dangerous
     for tag in soup.findAll():  
-        if tag.name.lower() in blacklist:  
-            # blacklisted tags are removed in their entirety  
-            tag.extract()  
+        if tag.name.lower() in blacklist:   
+            tag.extract()  # completely remove blacklisted tags
         elif tag.name.lower() in whitelist:  # names are like 'a', 'p', etc.
-            # tag is allowed. Make sure all the attributes are allowed.
+            # Tag is allowed so make sure all the attributes are allowed.
 
             # NOTE: use an array to keep track of bad attr's, then remove them
             # from the tag.attrs dictionary AFTER the loop so no "change size" error
             bad_attrs = []
             for attr in tag.attrs: # attrs are like name, class, href, etc.
                 # allowed attributes are whitelisted per-tag
-                #print attr
                 if tag.name.lower() in attr_whitelist and attr.lower() in attr_whitelist[ tag.name.lower() ]:
                     # Check for safe URLs. Don't want javascript, etc.
                     if attr.lower() in attributes_with_urls:
-                        #print "!!!!!!!!!!!!!!!!!"
-                        #print tag.attrs[attr]
-                        #print "!!!!!!!!!!!!!!!!!!"
-                        # TODO: support relative URLS, like "smiley.gif"? or do we care?
-                        # TODO: if its like javascript.URL, should we just turn it into string
-                        # or just remove it like it currently does b/c they want "text to come through"
+                        # NOTE: we currently don't support relative URLs, so they
+                        # just get removed for simplicity
                         if not re.match(r'(https?|ftp)://', tag.attrs[attr].lower()):
-                            #print "~~~"
-                            #print attr
                             bad_attrs += [attr] # TODO: fix and uncomment
-                            # ok, then
                             pass
                 else:
                     # Remove tags that are not whitelisted
                     # Note: includes 'class', 'id', 'name' atm as described above
                     bad_attrs += [attr]
             # Remove the bad attrs from the tag
-            print "\n"
-            print tag.name
-            print tag.attrs
-            print bad_attrs
             for ba in bad_attrs:
                 del tag.attrs[ba]
         else:  
-            # not a whitelisted tag. I'd like to remove it from the tree  
-            # and replace it with its children. But that's hard. It's much  
-            # easier to just replace it with an empty span tag.  
+            # Tags that are not whitelisted nor blacklisted are
+            # turned into empty span tags
             tag.name = "span" 
-            #tag.hidden = True #TODO: determine if we want it to be in a SPAN or just to hide the tag
+            #tag.hidden = True # Note: can uncomment this if just want text and no span tag
             tag.attrs = []  
   
     # Just remove all comments just in case they have scripts in them
